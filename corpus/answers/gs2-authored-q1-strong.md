@@ -1,5 +1,5 @@
 ---
-question_id: gs2-2023-q5
+question_id: gs2-authored-q1
 paper: GS2
 quality: strong
 ---

@@ -112,10 +112,14 @@ into the same metrics and report as everything else.
 
 Written here first, deliberately.
 
-- **The corpus is mine.** I am not a UPSC aspirant. Answers are written against public
-  previous-year questions and calibrated against published toppers' answers, but they
-  are not real examination scripts. If any answer is LLM-drafted and then edited, that
-  is disclosed here — an LLM-written corpus graded by an LLM is a real limitation.
+- **All 30 answers were LLM-drafted and author-reviewed.** None was written by a UPSC
+  aspirant or under examination conditions. An LLM-written corpus graded by an LLM has
+  a circularity problem, and it is the most serious limitation here. It affects the
+  monotonicity result in particular, since the quality labels encode the author's
+  judgement rather than an examiner's. See [corpus/PROVENANCE.md](corpus/PROVENANCE.md)
+  for what it does and does not undermine.
+- **Nine of the ten questions are verbatim UPSC Mains 2023; one is author-written** and
+  labelled `authored` so it is never cited as a real paper.
 - **Consistency is not accuracy.** A grader could be perfectly stable and perfectly
   wrong. This measures reliability, which is necessary but not sufficient.
 - **Effect sizes are means over a small corpus.** Treat them as directional.

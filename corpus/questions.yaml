@@ -1,19 +1,64 @@
-# Questions are taken from publicly available UPSC previous-year papers.
-# Key format: <paper>-<year>-q<number>
+# Questions used by the corpus.
 #
-# Add one entry per question you write answers for. Keep the wording verbatim,
-# including the directive word - "examine", "critically analyse", "discuss" - because
-# comprehension is one of the criteria being scored.
+# Key format: <paper>-<source>-<number>
+#
+# Provenance is recorded per question and matters: a benchmark about honest
+# evaluation cannot cite question papers it has not checked.
+#
+#   *-2023-*     verbatim from the UPSC Civil Services Mains 2023 papers
+#                (GS2 held 16-09-2023, GS3 17-09-2023, Essay 15-09-2023)
+#   *-authored-* written in UPSC style by the corpus author, NOT from a published
+#                paper. Used where a topic was wanted that the 2023 papers did not
+#                cover.
+#
+# Sources for the 2023 wording:
+#   https://www.clearias.com/gs-paper-2-upsc-2023-mains-question-paper-and-analysis/
+#   https://www.clearias.com/gs-paper-3-upsc-2023-mains-question-paper-and-analysis/
+#   https://www.clearias.com/essay-paper-upsc-2023-mains-question-paper-and-analysis/
 
-gs2-2023-q5: >
+# --- GS2 ---------------------------------------------------------------------
+
+gs2-2023-q1: >
+  Account for the legal and political factors responsible for the reduced frequency
+  of using Article 356 by the Union Governments since the mid-1990s.
+
+gs2-2023-q2: >
+  Explain the constitutional perspective of gender justice with the help of relevant
+  Constitutional provisions and case laws.
+
+gs2-2023-q3: >
+  e-governance, as a critical tool of governance, has ushered in effectiveness,
+  transparency and accountability in governments. What inadequacies hamper the
+  enhancement of these features?
+
+gs2-authored-q1: >
   "The Constitution of India is a living document that has evolved through judicial
   interpretation." Examine this statement with reference to the basic structure
   doctrine.
 
-gs3-2023-q11: >
-  Discuss the role of digital public infrastructure in improving the delivery of
-  welfare schemes in India. What are the principal risks?
+# --- GS3 ---------------------------------------------------------------------
 
-essay-2023-q1: >
-  Technology cannot replace the judgement of those who must live with its
-  consequences.
+gs3-2023-q1: >
+  Faster economic growth requires increased share of the manufacturing sector in GDP,
+  particularly of MSMEs. Comment on the present policies of the Government of India in
+  this regard.
+
+gs3-2023-q2: >
+  What is the status of digitalization in the Indian economy? Examine the problems
+  faced in this regard and suggest improvements.
+
+gs3-2023-q3: >
+  Introduce the concept of Artificial Intelligence (AI). How does AI help clinical
+  diagnosis? Do you perceive any threat to privacy of the individual in the use of AI
+  in healthcare?
+
+# --- Essay -------------------------------------------------------------------
+
+essay-2023-a2: >
+  Visionary decision-making happens at the intersection of intuition and logic.
+
+essay-2023-b3: >
+  A society that has more justice is a society that needs less charity.
+
+essay-2023-b4: >
+  Education is what remains after one has forgotten what one has learned in school.
