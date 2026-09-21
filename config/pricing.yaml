@@ -1,15 +1,23 @@
-# Prices are NOT shipped with this repo on purpose. They change, and a benchmark
-# that quietly reports stale pricing is worse than one that reports none.
-#
-# Fill in the current published rates below, then record in the README which date
-# you checked them. Leave a model out and its cost column stays blank rather than
-# showing a number nobody can trust.
-#
 # Rates are US dollars per million tokens.
+#
+# Prices change. Re-check them against the published price list before publishing any
+# cost figure, and update `checked_on` when you do. A benchmark that quietly reports
+# stale pricing is worse than one that reports none - leave a model out and its cost
+# column stays blank rather than showing a number nobody can trust.
 
-checked_on: null   # e.g. 2026-09-21
+checked_on: 2026-09-21
+source: >
+  Anthropic first-party API rates, from the bundled claude-api skill reference table
+  (that table was itself cached 2026-06-24). Not verified against the live pricing
+  page on the checked_on date - do that before publishing.
 
-models: {}
-  # <model-id>:
-  #   input_per_mtok: 0.00
-  #   output_per_mtok: 0.00
+models:
+  claude-opus-5:
+    input_per_mtok: 5.00
+    output_per_mtok: 25.00
+  claude-sonnet-5:
+    input_per_mtok: 2.00
+    output_per_mtok: 10.00
+  claude-haiku-4-5:
+    input_per_mtok: 1.00
+    output_per_mtok: 5.00

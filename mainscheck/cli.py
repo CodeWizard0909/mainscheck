@@ -55,7 +55,10 @@ def cli() -> None:
 @click.option("--model", required=True, help="Model id to grade with.")
 @click.option("--repeats", default=5, show_default=True,
               help="Repeat runs per answer, for self-consistency.")
-@click.option("--temperatures", default="0.0,0.7", show_default=True)
+@click.option("--temperatures", default="0.0", show_default=True,
+              help="Only reaches the API on models that still accept sampling "
+                   "parameters; current models reject them. Repeats, not "
+                   "temperature, are what measure consistency.")
 @click.option("--concurrency", default=8, show_default=True)
 @click.option("--no-perturbations", is_flag=True, help="Consistency only.")
 @click.option("--limit", default=0, help="Use only the first N answers (a smoke test).")
@@ -113,6 +116,13 @@ def run_cmd(rubric, model, repeats, temperatures, concurrency, no_perturbations,
     if failed:
         click.secho(f"{len(failed)} gradings failed; first: {failed[0].error}",
                     fg="yellow", err=True)
+
+    # Writing a results file of nothing but errors poisons the directory: `report`
+    # would load it and compute metrics over an empty set.
+    if len(failed) == len(gradings):
+        raise click.ClickException(
+            "every grading failed - nothing written. Fix the error above and re-run."
+        )
 
     out = out_dir / f"{model}__{rubric}.json"
     save(gradings, out)
