@@ -2,6 +2,8 @@
 # This repo is public; these are not.
 research/
 
+.scratch/
+
 .cache/
 report/index.html
 .venv/
