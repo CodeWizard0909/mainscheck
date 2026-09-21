@@ -15,6 +15,7 @@ import yaml
 
 from .corpus import load_corpus, load_questions
 from .economics import load_pricing, summarise
+from .env import load_dotenv
 from .graders.anthropic_grader import AnthropicGrader
 from .graders.base import Cache
 from .graders.stub import StubGrader
@@ -44,6 +45,9 @@ def report_path_for(results_dir: str) -> Path:
 @click.group()
 def cli() -> None:
     """An open reliability test for AI grading of UPSC Mains answers."""
+    # Names only. The values are secrets and are never printed.
+    for name in load_dotenv(ROOT / ".env"):
+        click.echo(f"loaded {name} from .env", err=True)
 
 
 @cli.command("run")
