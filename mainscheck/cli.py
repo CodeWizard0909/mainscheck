@@ -47,8 +47,16 @@ STUB_RESULTS = "results-stub"
 
 
 def report_path_for(results_dir: str) -> Path:
-    name = "index.html" if results_dir == REAL_RESULTS else f"{results_dir}.html"
-    return ROOT / "report" / name
+    """Where a built report lands.
+
+    The real report goes to docs/, which is committed and served by GitHub Pages:
+    the published page is a versioned artefact, so its numbers can be traced to the
+    commit that produced them. Stub and scratch reports stay in report/, which is
+    ignored, so they can never be mistaken for the published one.
+    """
+    if results_dir == REAL_RESULTS:
+        return ROOT / "docs" / "index.html"
+    return ROOT / "report" / f"{results_dir}.html"
 
 
 @click.group()
