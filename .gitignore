@@ -1,0 +1,13 @@
+# Private working notes - target research, dossiers, build specs.
+# This repo is public; these are not.
+research/
+
+.cache/
+report/index.html
+.venv/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+
+# uv.lock IS committed - a benchmark other people rerun needs pinned dependencies.

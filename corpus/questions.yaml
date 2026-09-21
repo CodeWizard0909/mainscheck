@@ -1,0 +1,19 @@
+# Questions are taken from publicly available UPSC previous-year papers.
+# Key format: <paper>-<year>-q<number>
+#
+# Add one entry per question you write answers for. Keep the wording verbatim,
+# including the directive word - "examine", "critically analyse", "discuss" - because
+# comprehension is one of the criteria being scored.
+
+gs2-2023-q5: >
+  "The Constitution of India is a living document that has evolved through judicial
+  interpretation." Examine this statement with reference to the basic structure
+  doctrine.
+
+gs3-2023-q11: >
+  Discuss the role of digital public infrastructure in improving the delivery of
+  welfare schemes in India. What are the principal risks?
+
+essay-2023-q1: >
+  Technology cannot replace the judgement of those who must live with its
+  consequences.

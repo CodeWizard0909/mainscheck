@@ -1,0 +1,20 @@
+id: naive
+scale: "0 to 10"
+
+# The baseline. This is roughly what "we evaluate your answer with AI" means when
+# nobody has thought about it. Every headline number should show the structured
+# rubric beating this one — that comparison is the argument for structured grading.
+criteria:
+  overall: "How good is this answer?"
+
+template: |
+  Score this UPSC Mains answer out of 10.
+
+  QUESTION:
+  {question}
+
+  ANSWER:
+  {answer}
+
+  Respond with a single JSON object and nothing else:
+  {{"scores": {{"overall": <number>}}, "rationale": "<one sentence>"}}

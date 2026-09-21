@@ -1,0 +1,37 @@
+id: structured
+scale: "0 to 10, where 10 is a top-decile answer for this paper"
+
+# The four criteria SuperKalam states publicly for its Mains evaluation.
+criteria:
+  comprehension: >
+    Did the answer address what the question actually asked, including its
+    directive word (examine, critically analyse, discuss), and stay within scope?
+  structure: >
+    Is there a clear introduction, a body organised into coherent arguments, and a
+    conclusion that follows from the body rather than restating the introduction?
+  factual_accuracy: >
+    Are the facts, dates, Acts, schemes, committee names and data points correct?
+    Penalise incorrect claims more heavily than missing ones.
+  analytical_depth: >
+    Does the answer weigh competing considerations and reach a defended position,
+    or does it merely list points?
+
+template: |
+  You are evaluating an answer to a UPSC Civil Services Mains examination question.
+
+  QUESTION:
+  {question}
+
+  CANDIDATE ANSWER:
+  {answer}
+
+  Score the answer on each criterion below, on a scale of {scale}.
+
+  CRITERIA:
+  {criteria}
+
+  Judge only what is present in the answer. Do not reward length. Do not assume
+  the candidate knows anything they have not written.
+
+  Respond with a single JSON object and nothing else:
+  {{"scores": {{"comprehension": <number>, "structure": <number>, "factual_accuracy": <number>, "analytical_depth": <number>}}, "rationale": "<two sentences justifying the scores>"}}

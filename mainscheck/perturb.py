@@ -1,0 +1,151 @@
+"""The six perturbations.
+
+Each returns perturbed answer text plus the direction the score is expected to move
+on a named criterion. ``synonym_rewrite`` is the control: if a grader's scores move
+when only wording changes, the harness is measuring noise, and that is a finding in
+itself rather than something to hide.
+"""
+
+from __future__ import annotations
+
+import random
+import re
+from dataclasses import dataclass
+from typing import Callable
+
+from .corpus import Answer, render
+
+# Deliberately bland filler. It adds length and zero substance, which is the point.
+_FILLER = [
+    "This dimension of the issue has been widely discussed in policy circles.",
+    "It is important to note that the matter has several aspects worth considering.",
+    "Various stakeholders have expressed differing views on this question over time.",
+    "The broader context of this issue continues to remain relevant to the debate.",
+]
+
+# Wording-only substitutions. Nothing here changes a claim, a fact, or an argument.
+_SYNONYMS = {
+    r"\bimportant\b": "significant",
+    r"\bshows\b": "demonstrates",
+    r"\bbecause\b": "since",
+    r"\bhowever\b": "nevertheless",
+    r"\bmany\b": "numerous",
+    r"\balso\b": "additionally",
+    r"\bhelp\b": "assist",
+    r"\bbig\b": "substantial",
+}
+
+
+@dataclass(frozen=True)
+class Perturbation:
+    name: str
+    criterion: str
+    direction: int  # -1 expect a fall, 0 expect no change, +1 expect a rise
+    text: str
+    note: str = ""
+
+
+def _rng(answer: Answer, salt: str) -> random.Random:
+    """Deterministic per (answer, perturbation) so runs are reproducible."""
+    return random.Random(f"{answer.answer_id}:{salt}")
+
+
+def delete_fact(answer: Answer) -> Perturbation | None:
+    facts = answer.facts
+    if not facts:
+        return None
+    victim = _rng(answer, "delete").choice(facts)
+    body = answer.body[: victim.start] + answer.body[victim.end :]
+    body = re.sub(r"\s{2,}", " ", body)
+    return Perturbation(
+        "delete_fact",
+        "factual_accuracy",
+        -1,
+        render(body),
+        f"removed: {victim.correct}",
+    )
+
+
+def corrupt_fact(answer: Answer) -> Perturbation | None:
+    """Wrong information should be penalised harder than missing information."""
+    facts = answer.facts
+    if not facts:
+        return None
+    victim = _rng(answer, "corrupt").choice(facts)
+    body = answer.body[: victim.start] + victim.corrupted + answer.body[victim.end :]
+    return Perturbation(
+        "corrupt_fact",
+        "factual_accuracy",
+        -1,
+        render(body),
+        f"{victim.correct} -> {victim.corrupted}",
+    )
+
+
+def scramble_structure(answer: Answer) -> Perturbation | None:
+    paras = answer.paragraphs
+    if len(paras) < 3:
+        return None
+    shuffled = paras[:]
+    rng = _rng(answer, "scramble")
+    for _ in range(20):
+        rng.shuffle(shuffled)
+        if shuffled != paras:
+            break
+    else:
+        return None
+    return Perturbation(
+        "scramble_structure", "structure", -1, render("\n\n".join(shuffled))
+    )
+
+
+def pad_verbosity(answer: Answer) -> Perturbation:
+    """More words, no more content. No criterion should reward this."""
+    rng = _rng(answer, "pad")
+    paras = answer.paragraphs
+    padded = [f"{p} {rng.choice(_FILLER)}" for p in paras]
+    return Perturbation(
+        "pad_verbosity", "structure", 0, render("\n\n".join(padded)),
+        "length inflated without new content",
+    )
+
+
+def remove_conclusion(answer: Answer) -> Perturbation | None:
+    paras = answer.paragraphs
+    if len(paras) < 3:
+        return None
+    return Perturbation(
+        "remove_conclusion", "structure", -1, render("\n\n".join(paras[:-1]))
+    )
+
+
+def synonym_rewrite(answer: Answer) -> Perturbation:
+    """THE CONTROL. Wording changes only. Expected direction is zero."""
+    body = answer.body
+    for pattern, replacement in _SYNONYMS.items():
+        body = re.sub(pattern, replacement, body, flags=re.IGNORECASE)
+    return Perturbation(
+        "synonym_rewrite", "overall", 0, render(body), "control: wording only"
+    )
+
+
+ALL: list[Callable[[Answer], Perturbation | None]] = [
+    delete_fact,
+    corrupt_fact,
+    scramble_structure,
+    pad_verbosity,
+    remove_conclusion,
+    synonym_rewrite,
+]
+
+CONTROL = "synonym_rewrite"
+
+
+def apply_all(answer: Answer) -> list[Perturbation]:
+    """Every perturbation that applies to this answer. Some need facts or paragraphs."""
+    out = []
+    for fn in ALL:
+        result = fn(answer)
+        if result is not None:
+            out.append(result)
+    return out

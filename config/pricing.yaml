@@ -1,0 +1,15 @@
+# Prices are NOT shipped with this repo on purpose. They change, and a benchmark
+# that quietly reports stale pricing is worse than one that reports none.
+#
+# Fill in the current published rates below, then record in the README which date
+# you checked them. Leave a model out and its cost column stays blank rather than
+# showing a number nobody can trust.
+#
+# Rates are US dollars per million tokens.
+
+checked_on: null   # e.g. 2026-09-21
+
+models: {}
+  # <model-id>:
+  #   input_per_mtok: 0.00
+  #   output_per_mtok: 0.00
