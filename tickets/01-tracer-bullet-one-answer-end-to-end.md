@@ -6,29 +6,36 @@ Deliberately tiny. Three answers at most, few repeats, one configuration. The po
 
 **Blocked by:** None (can start immediately)
 
-**Status:** needs-info
+**Status:** ready-for-human
 
-- [ ] `ANTHROPIC_API_KEY` set and a live grading call succeeds against the structured rubric
+- [x] A live grading call succeeds against the structured rubric
 - [x] Two more answers exist for the same question, one `middling` and one `weak`, so a spread is visible
 - [x] A run with `--limit 3 --repeats 3` completes and writes a results JSON
-- [ ] The report builds and opens, showing consistency and cost columns with real values
+- [x] The report builds and opens, showing consistency, latency and token columns with real values
 - [x] Re-running the same command is near-instant and shows cache hits, confirming the cache works
-- [ ] Token counts and latency are non-zero on every stored grading
+- [x] Token counts and latency are non-zero on every stored grading
 
 ## Comments
 
-**Status is `needs-info`:** waiting on an `ANTHROPIC_API_KEY`. Three criteria stay
-unticked until one is available, and none of them should be reworded to match what the
-stub can reach — the earlier revision of this ticket did exactly that and it was wrong.
+**Closed by a local run, not a hosted one.** The project moved to grading with a local
+model through Ollama, so no API key was needed in the end. `llama3.2:3b` graded the
+three answers with real scores, real token counts and real latency.
 
-- The **live grading call** cannot happen at all.
-- The **report criterion** asks for consistency *and cost* with real values. Cost is
-  blank until `config/pricing.yaml` is filled, and the consistency the stub produces is
-  0.0 by construction, which is not a real value.
-- **Tokens and latency** are non-zero in stub output, but the token counts are
-  fabricated rather than reported by a model, so the criterion is not met.
+**One acceptance criterion was changed, and the reason matters.** It originally read
+"consistency *and cost* columns with real values". Local inference has no per-call
+price, so the design now reports latency and tokens instead of dollars, and the
+criterion was amended to match. This is a change because the design changed underneath
+it — distinct from an earlier revision of this ticket, which reworded a criterion to
+fit a result that had fallen short. That was wrong and was reverted.
 
-Everything else is done and verified through a stub grader
+**A Windows bug surfaced on the full run.** Ollama model names contain a colon
+(`llama3.2:3b`), and a colon in a Windows path opens an NTFS alternate data stream
+rather than creating a file. Results were written to a zero-byte file's hidden stream:
+readable by exact path, invisible to the directory glob `report` uses, and silent.
+Filenames are now sanitised. Nothing was lost — the content-addressed cache replayed
+all 480 gradings instantly.
+
+Earlier work was verified through a stub grader
 (`--grader stub`), which exercises the runner, cache, metrics and report with no
 network and no cost. Stub output goes to `results-stub/` and never mixes with real
 results.

@@ -79,6 +79,20 @@ async def run(
     return await asyncio.gather(*(one(t) for t in tasks))
 
 
+_ILLEGAL_IN_FILENAMES = str.maketrans({c: "-" for c in '<>:"/\\|?*'})
+
+
+def safe_filename(name: str) -> str:
+    """Make a model name usable as a filename.
+
+    Ollama names contain a colon (``llama3.2:3b``). On Windows a colon in a path
+    opens an NTFS alternate data stream instead of creating a file, so the results
+    land on a zero-byte file, stay readable by exact path, and are invisible to the
+    directory glob the report uses. Silent, and very confusing to diagnose.
+    """
+    return name.translate(_ILLEGAL_IN_FILENAMES)
+
+
 def save(gradings: list[Grading], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(

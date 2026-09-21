@@ -24,7 +24,7 @@ from .graders.stub import StubGrader
 from .metrics import bias, consistency, monotonicity, sensitivity
 from .perturb import CONTROL, apply_all, find_no_ops
 from .report import build_report
-from .runner import build_tasks, load_all, run, save
+from .runner import build_tasks, load_all, run, safe_filename, save
 
 ROOT = Path(__file__).resolve().parent.parent
 CORPUS = ROOT / "corpus" / "answers"
@@ -57,10 +57,11 @@ def cli() -> None:
 @click.option("--model", required=True, help="Model id to grade with.")
 @click.option("--repeats", default=5, show_default=True,
               help="Repeat runs per answer, for self-consistency.")
-@click.option("--temperatures", default="0.0", show_default=True,
-              help="Only reaches the API on models that still accept sampling "
-                   "parameters; current models reject them. Repeats, not "
-                   "temperature, are what measure consistency.")
+@click.option("--temperatures", default="0.0,0.7", show_default=True,
+              help="Local models accept sampling parameters, so this axis is real. "
+                   "Current hosted models reject them, and the value is then only "
+                   "recorded as cache-key metadata - there, repeats alone measure "
+                   "consistency.")
 @click.option("--concurrency", default=8, show_default=True)
 @click.option("--no-perturbations", is_flag=True, help="Consistency only.")
 @click.option("--limit", default=0, help="Use only the first N answers (a smoke test).")
@@ -141,7 +142,7 @@ def run_cmd(rubric, model, repeats, temperatures, concurrency, no_perturbations,
             "every grading failed - nothing written. Fix the error above and re-run."
         )
 
-    out = out_dir / f"{model}__{rubric}.json"
+    out = out_dir / f"{safe_filename(model)}__{rubric}.json"
     save(gradings, out)
     click.secho(f"wrote {out.relative_to(ROOT)}", fg="green")
     click.echo(f"cache: {cache.hits} hits, {cache.misses} misses")
