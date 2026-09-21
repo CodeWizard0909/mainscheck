@@ -86,31 +86,78 @@ def build_report(blocks: list[dict], economics: list[Economics], out: Path) -> P
         "should matter? Measured on a public corpus of UPSC Mains answers.</p>",
     ]
 
-    html.append("<h2>Reliability by configuration</h2>")
+    html.append("<h2>Consistency, per temperature</h2>")
     html.append(
-        "<table><tr><th>Model</th><th>Rubric</th><th class='num'>Max spread</th>"
-        "<th class='num'>Worst SD</th><th class='num'>Spearman &rho;</th>"
-        "<th class='num'>Inversions</th><th>Control</th></tr>"
+        "<p class='note'>Reported separately by temperature on purpose. A single "
+        "blended figure mixes sampling variance at one temperature with the "
+        "difference between settings, and describes neither — a model that is "
+        "deterministic at 0 looks unstable.</p>"
+    )
+    html.append(
+        "<table><tr><th>Model</th><th>Rubric</th><th class='num'>Temp</th>"
+        "<th class='num'>Mean spread</th><th class='num'>Worst</th>"
+        "<th class='num'>Identical across repeats</th></tr>"
     )
     for b in blocks:
-        c, m, s = b["consistency"], b["monotonicity"], b["sensitivity"]
+        for temp, c in sorted(b["by_temperature"].items()):
+            if not c.answers:
+                continue
+            share = c.deterministic / c.answers
+            html.append(
+                f"<tr><td><code>{b['model']}</code></td><td>{b['rubric']}</td>"
+                f"<td class='num'>{temp:.1f}</td>"
+                f"<td class='num'>{c.mean_spread:.2f}</td>"
+                f"<td class='num'>{c.max_spread:.2f}</td>"
+                f"<td class='num'>{c.deterministic}/{c.answers} "
+                f"<span style='color:var(--muted)'>({share:.0%})</span></td></tr>"
+            )
+    html.append("</table>")
+
+    html.append("<h2>Ranking and control</h2>")
+    html.append(
+        "<table><tr><th>Model</th><th>Rubric</th><th class='num'>Spearman &rho;</th>"
+        "<th class='num'>Inversions</th><th>Control, aggregate</th></tr>"
+    )
+    for b in blocks:
+        m, s = b["monotonicity"], b["sensitivity"]
         ok = s.control_drift <= 0.2
         html.append(
             f"<tr><td><code>{b['model']}</code></td><td>{b['rubric']}</td>"
-            f"<td class='num'>{c.max_spread:.1f}</td>"
-            f"<td class='num'>{c.worst_sd:.2f} <span style='color:var(--muted)'>"
-            f"({c.worst_criterion})</span></td>"
             f"<td class='num'>{s_fmt(m.spearman_rho)}</td>"
             f"<td class='num'>{m.inversion_rate:.0%}</td>"
             f"<td class='{'pass' if ok else 'fail'}'>"
             f"{'flat' if ok else f'drift {s.control_drift:+.2f}'}</td></tr>"
         )
     html.append("</table>")
-    html.append(
-        f"<p class='note'>The control perturbation (<code>{CONTROL}</code>) changes "
-        "wording only. If scores move, the harness is measuring sampling noise rather "
-        "than answer quality — reported here rather than hidden.</p>"
-    )
+
+    for b in blocks:
+        banded = b.get("control_by_band")
+        if not banded or not banded.per_band:
+            continue
+        html.append(f"<h2>Control by answer quality &mdash; {b['model']}</h2>")
+        html.append(
+            "<table><tr><th>Quality band</th><th class='num'>Mean change</th>"
+            "<th class='num'>Largest</th><th class='num'>Answers</th></tr>"
+        )
+        for band in ("weak", "middling", "strong"):
+            if band not in banded.per_band:
+                continue
+            value = banded.per_band[band]
+            cls = "fail" if abs(value) > 0.2 else "pass"
+            html.append(
+                f"<tr><td>{band}</td>"
+                f"<td class='num {cls}'>{value:+.2f}</td>"
+                f"<td class='num'>{banded.max_per_band[band]:+.2f}</td>"
+                f"<td class='num'>{banded.counts[band]}</td></tr>"
+            )
+        html.append("</table>")
+        html.append(
+            f"<p class='note'>The control (<code>{CONTROL}</code>) changes wording "
+            "and nothing else, so every row here should read 0.00. Where it does not, "
+            "the grader is responding to phrasing rather than to substance. The "
+            "aggregate above can pass a 0.2 gate while a single band fails badly, "
+            "which is why this table exists.</p>"
+        )
 
     for b in blocks:
         s = b["sensitivity"]

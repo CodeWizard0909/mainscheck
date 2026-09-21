@@ -23,26 +23,38 @@ class ConsistencyResult:
     worst_criterion: str
     worst_sd: float
     max_spread: float  # largest (max - min) overall score seen on a single answer
+    mean_spread: float = 0.0
+    deterministic: int = 0  # answers whose repeats agreed exactly
+    answers: int = 0
 
     @property
     def headline(self) -> str:
+        if not self.answers:
+            return "no repeated runs to compare"
         return (
-            f"same answer varies by up to {self.max_spread:.1f} points; "
-            f"worst criterion '{self.worst_criterion}' SD={self.worst_sd:.2f}"
+            f"mean spread {self.mean_spread:.2f}, worst {self.max_spread:.2f}; "
+            f"{self.deterministic}/{self.answers} answers identical across repeats"
         )
 
 
 def consistency(gradings: list[Grading]) -> ConsistencyResult:
-    """Same answer, same config, repeated runs. How much does the score wander?"""
-    originals = [g for g in gradings if g.variant == "original" and not g.error]
-    by_answer: dict[str, list[Grading]] = defaultdict(list)
-    for g in originals:
-        by_answer[g.answer_id].append(g)
+    """Same answer, same config, same temperature, repeated runs.
+
+    Runs are grouped by (answer, temperature) rather than by answer alone. Mixing
+    temperatures would blend two different quantities - sampling variance at one
+    temperature, and the difference between temperature settings - into a single
+    number that describes neither. On a deterministic model the blended figure looks
+    like instability that is not there.
+    """
+    runs_by_group: dict[tuple[str, float], list[Grading]] = defaultdict(list)
+    for g in gradings:
+        if g.variant == "original" and not g.error:
+            runs_by_group[(g.answer_id, g.temperature)].append(g)
 
     per_criterion: dict[str, list[float]] = defaultdict(list)
     spreads: list[float] = []
 
-    for runs in by_answer.values():
+    for runs in runs_by_group.values():
         if len(runs) < 2:
             continue
         overalls = [g.overall for g in runs if g.overall is not None]
@@ -57,7 +69,29 @@ def consistency(gradings: list[Grading]) -> ConsistencyResult:
     if not sds:
         return ConsistencyResult({}, "n/a", 0.0, 0.0)
     worst = max(sds, key=lambda c: sds[c])
-    return ConsistencyResult(sds, worst, sds[worst], max(spreads) if spreads else 0.0)
+    return ConsistencyResult(
+        per_criterion_sd=sds,
+        worst_criterion=worst,
+        worst_sd=sds[worst],
+        max_spread=max(spreads) if spreads else 0.0,
+        mean_spread=mean(spreads) if spreads else 0.0,
+        deterministic=sum(1 for s in spreads if s == 0.0),
+        answers=len(spreads),
+    )
+
+
+def consistency_by_temperature(
+    gradings: list[Grading],
+) -> dict[float, ConsistencyResult]:
+    """Consistency reported separately per temperature.
+
+    This is the headline split: a model can be perfectly deterministic at 0 and wander
+    at 0.7, and a single blended figure hides both facts.
+    """
+    by_temp: dict[float, list[Grading]] = defaultdict(list)
+    for g in gradings:
+        by_temp[g.temperature].append(g)
+    return {t: consistency(rows) for t, rows in sorted(by_temp.items())}
 
 
 @dataclass
@@ -93,6 +127,64 @@ def sensitivity(
 
     per = {name: mean(values) for name, values in deltas.items() if values}
     return SensitivityResult(per, directions, abs(per.get(CONTROL, 0.0)))
+
+
+@dataclass
+class BandedEffect:
+    """One perturbation's effect, split by the quality band of the answer.
+
+    An aggregate mean can pass a gate while hiding the whole finding. A control that
+    is flat on strong answers and moves weak ones by half a point averages to
+    something unremarkable, and the average is the least interesting number in it.
+    """
+
+    per_band: dict[str, float]
+    max_per_band: dict[str, float]
+    counts: dict[str, int]
+
+    @property
+    def worst_band(self) -> str | None:
+        if not self.per_band:
+            return None
+        return max(self.per_band, key=lambda b: abs(self.per_band[b]))
+
+
+def effect_by_quality(
+    gradings: list[Grading],
+    quality_by_answer: dict[str, str],
+    variant: str,
+    *,
+    temperature: float | None = None,
+) -> BandedEffect:
+    """Mean and worst change for one perturbation, per quality band.
+
+    Pin ``temperature`` to the deterministic setting where the model has one: at a
+    sampling temperature the measured change is partly noise, and the point here is
+    to attribute a real effect to a band.
+    """
+    rows = [g for g in gradings if not g.error and g.overall is not None]
+    if temperature is not None:
+        rows = [g for g in rows if g.temperature == temperature]
+
+    baseline: dict[str, list[float]] = defaultdict(list)
+    for g in rows:
+        if g.variant == "original":
+            baseline[g.answer_id].append(g.overall)
+    base = {aid: mean(vals) for aid, vals in baseline.items()}
+
+    per_band: dict[str, list[float]] = defaultdict(list)
+    for g in rows:
+        if g.variant != variant or g.answer_id not in base:
+            continue
+        band = quality_by_answer.get(g.answer_id)
+        if band:
+            per_band[band].append(g.overall - base[g.answer_id])
+
+    return BandedEffect(
+        per_band={b: mean(v) for b, v in per_band.items()},
+        max_per_band={b: max(v, key=abs) for b, v in per_band.items()},
+        counts={b: len(v) for b, v in per_band.items()},
+    )
 
 
 @dataclass

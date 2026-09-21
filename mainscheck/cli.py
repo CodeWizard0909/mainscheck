@@ -21,7 +21,14 @@ from .graders.base import Cache
 from .graders.ollama import DEFAULT_HOST as OLLAMA_DEFAULT_HOST
 from .graders.ollama import OllamaGrader, is_running
 from .graders.stub import StubGrader
-from .metrics import bias, consistency, monotonicity, sensitivity
+from .metrics import (
+    bias,
+    consistency,
+    consistency_by_temperature,
+    effect_by_quality,
+    monotonicity,
+    sensitivity,
+)
 from .perturb import CONTROL, apply_all, find_no_ops
 from .report import build_report
 from .runner import build_tasks, load_all, run, safe_filename, save
@@ -174,13 +181,21 @@ def report_cmd(open_, results_dir):
     blocks = []
     for model, rubric_id in configs:
         subset = [g for g in gradings if g.model == model and g.rubric_id == rubric_id]
+        by_temperature = consistency_by_temperature(subset)
+        # Pin the banded control to the lowest temperature present: where the model
+        # is deterministic, a measured change is a real effect rather than noise.
+        coldest = min(by_temperature) if by_temperature else None
         blocks.append({
             "model": model,
             "rubric": rubric_id,
             "consistency": consistency(subset),
+            "by_temperature": by_temperature,
             "sensitivity": sensitivity(subset, directions),
             "monotonicity": monotonicity(subset, quality),
             "bias": bias(subset, lengths),
+            "control_by_band": effect_by_quality(
+                subset, quality, CONTROL, temperature=coldest
+            ),
         })
 
     economics = summarise(gradings, load_pricing(PRICING))
@@ -188,12 +203,18 @@ def report_cmd(open_, results_dir):
     click.secho(f"wrote {path.relative_to(ROOT)}", fg="green")
 
     for block in blocks:
-        control_drift = block["sensitivity"].control_drift
-        flag = "OK" if control_drift <= 0.2 else "CONTROL DRIFT"
-        click.echo(
-            f"  {block['model']} / {block['rubric']}: "
-            f"{block['consistency'].headline}  [{flag}]"
-        )
+        click.echo(f"  {block['model']} / {block['rubric']}")
+        for temp, c in sorted(block["by_temperature"].items()):
+            if c.answers:
+                click.echo(f"    t={temp:.1f}  {c.headline}")
+
+        banded = block["control_by_band"]
+        failing = {b: v for b, v in banded.per_band.items() if abs(v) > 0.2}
+        if failing:
+            detail = ", ".join(f"{b} {v:+.2f}" for b, v in sorted(failing.items()))
+            click.secho(f"    CONTROL DRIFT by band: {detail}", fg="red")
+        elif banded.per_band:
+            click.echo("    control flat across every quality band")
 
     if not any(e.priced for e in economics):
         click.secho(
