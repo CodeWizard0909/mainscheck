@@ -9,11 +9,36 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
 
 from pydantic import BaseModel, Field
+
+_JSON_BLOCK = re.compile(r"\{.*\}", re.DOTALL)
+
+
+def parse_scores(text: str, criteria: list[str]) -> tuple[dict[str, float], str]:
+    """Pull scores and a rationale out of a model's reply.
+
+    Shared by every grader: the reply shape is the rubric's contract, not any one
+    provider's. A missing criterion raises rather than defaulting to zero - a silently
+    absent score would look like a harsh grade instead of a broken response.
+    """
+    match = _JSON_BLOCK.search(text)
+    if not match:
+        raise ValueError(f"no JSON object in response: {text[:200]!r}")
+    payload = json.loads(match.group(0))
+
+    raw = payload.get("scores", payload)
+    scores: dict[str, float] = {}
+    for criterion in criteria:
+        if criterion not in raw:
+            raise ValueError(f"response missing criterion {criterion!r}")
+        scores[criterion] = float(raw[criterion])
+
+    return scores, str(payload.get("rationale", ""))
 
 
 class Grading(BaseModel):

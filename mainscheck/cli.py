@@ -18,6 +18,8 @@ from .economics import load_pricing, summarise
 from .env import load_dotenv
 from .graders.anthropic_grader import AnthropicGrader
 from .graders.base import Cache
+from .graders.ollama import DEFAULT_HOST as OLLAMA_DEFAULT_HOST
+from .graders.ollama import OllamaGrader, is_running
 from .graders.stub import StubGrader
 from .metrics import bias, consistency, monotonicity, sensitivity
 from .perturb import CONTROL, apply_all, find_no_ops
@@ -62,9 +64,10 @@ def cli() -> None:
 @click.option("--concurrency", default=8, show_default=True)
 @click.option("--no-perturbations", is_flag=True, help="Consistency only.")
 @click.option("--limit", default=0, help="Use only the first N answers (a smoke test).")
-@click.option("--grader", type=click.Choice(["anthropic", "stub"]), default="anthropic",
-              show_default=True,
-              help="'stub' exercises the pipeline with no API calls and no cost.")
+@click.option("--grader", type=click.Choice(["ollama", "anthropic", "stub"]),
+              default="ollama", show_default=True,
+              help="'ollama' runs a local model - free, no key. 'stub' exercises "
+                   "the pipeline with no model at all.")
 @click.option("--results-dir", default=None,
               help="Where to write results. Defaults to results/, or results-stub/ "
                    "for the stub grader so the two never mix.")
@@ -95,6 +98,20 @@ def run_cmd(rubric, model, repeats, temperatures, concurrency, no_perturbations,
         out_dir = ROOT / (results_dir or STUB_RESULTS)
         click.secho("stub grader: no API calls, and these results are not real",
                     fg="yellow", err=True)
+    elif grader == "ollama":
+        host = asyncio.run(is_running())
+        if host is None:
+            raise click.ClickException(
+                f"no Ollama server at {OLLAMA_DEFAULT_HOST}. Start it with `ollama "
+                "serve`, or install it from https://ollama.com/download"
+            )
+        cache = Cache(CACHE)
+        grader_impl = OllamaGrader(model, rubric_cfg, cache, host=host)
+        out_dir = ROOT / (results_dir or REAL_RESULTS)
+        # Local inference is compute-bound, so parallel requests queue rather than
+        # overlap. More than a couple just adds memory pressure.
+        concurrency = min(concurrency, 2)
+        click.echo(f"ollama at {host}, concurrency capped to {concurrency}", err=True)
     else:
         cache = Cache(CACHE)
         grader_impl = AnthropicGrader(model, rubric_cfg, cache)

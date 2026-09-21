@@ -7,15 +7,11 @@ is the entire point of this project.
 
 from __future__ import annotations
 
-import json
 import os
-import re
 
 from anthropic import AsyncAnthropic
 
-from .base import Cache, Grader
-
-_JSON_BLOCK = re.compile(r"\{.*\}", re.DOTALL)
+from .base import Cache, Grader, parse_scores
 
 # Sampling parameters were removed from the current generation: sending `temperature`
 # to Opus 5, Sonnet 5 or Opus 4.7/4.8 returns a 400. Only older models still accept it.
@@ -68,25 +64,10 @@ class AnthropicGrader(Grader):
         text = "".join(
             block.text for block in response.content if block.type == "text"
         )
-        scores, rationale = self._parse(text)
+        scores, rationale = parse_scores(text, self.criteria)
         return (
             scores,
             rationale,
             response.usage.input_tokens,
             response.usage.output_tokens,
         )
-
-    def _parse(self, text: str) -> tuple[dict[str, float], str]:
-        match = _JSON_BLOCK.search(text)
-        if not match:
-            raise ValueError(f"no JSON object in response: {text[:200]!r}")
-        payload = json.loads(match.group(0))
-
-        raw = payload.get("scores", payload)
-        scores: dict[str, float] = {}
-        for criterion in self.criteria:
-            if criterion not in raw:
-                raise ValueError(f"response missing criterion {criterion!r}")
-            scores[criterion] = float(raw[criterion])
-
-        return scores, str(payload.get("rationale", ""))
