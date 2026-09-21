@@ -15,7 +15,7 @@ None of them publishes evidence that the scores are stable. This measures that.
 
 | Metric | Question it answers |
 |---|---|
-| **Self-consistency** | Grade the same answer five times. How far do the scores wander? |
+| **Self-consistency** | Grade the same answer five times, at each temperature. How far do the scores wander? |
 | **Sensitivity** | Delete a fact from a correct answer. Does the mark actually fall? |
 | **Monotonicity** | Do weak, middling and strong answers rank in that order? |
 | **Bias** | Does padding an answer with filler raise its score? Does grading position matter? |
@@ -62,19 +62,26 @@ uv run mainscheck validate
 `validate` needs no API key. It checks that every answer parses, carries fact markers,
 has at least three paragraphs, and that all six perturbations apply.
 
+Grading runs against a **local model through Ollama** by default — no API key, no
+account, no rate limit:
+
 ```bash
-export ANTHROPIC_API_KEY=...
-uv run mainscheck run --rubric structured --model <model-id> --repeats 5 --limit 3
+ollama pull llama3.2:3b
+uv run mainscheck run --model llama3.2:3b --rubric structured --repeats 5 --limit 3
 uv run mainscheck report --open
 ```
 
-Start with `--limit 3`. The full matrix is answers x repeats x temperatures x
-perturbations x configurations, which runs to tens of thousands of calls — extrapolate
-the cost from a small run before committing to a large one. Every response is cached
-to `.cache/` by content hash, so re-runs are nearly free.
+Start with `--limit 3`. The full sweep is answers × repeats × temperatures ×
+perturbations × configurations, and local inference is compute-bound — budget hours
+per configuration on CPU, not minutes. Every response is cached to `.cache/` by
+content hash, so an interrupted run resumes for free and re-runs cost nothing.
 
-Cost and latency are recorded on every call. Fill in `config/pricing.yaml` with
-current published rates to populate the cost columns, and note the date you checked.
+Running everything locally is a deliberate choice rather than a limitation. A reader
+can reproduce every number in this repository with `ollama pull` and these commands.
+A benchmark nobody else can re-run is a claim, not a measurement.
+
+To grade with a hosted Anthropic model instead, copy `.env.example` to `.env`, add a
+key, and pass `--grader anthropic`. That path costs money; the default does not.
 
 ---
 
@@ -125,7 +132,13 @@ Written here first, deliberately.
 - **Effect sizes are means over a small corpus.** Treat them as directional.
 - **No competitor products are tested.** Grading through someone's paid app would
   breach its terms. Only configurations — model plus rubric plus prompt — are compared.
-- **Prices are user-supplied.** See `config/pricing.yaml`.
+- **The models measured are small, locally hosted ones.** Findings describe those
+  models, not the frontier hosted models a commercial product might use. What
+  transfers is the method: plug your own grader in and run the same test against it.
+- **Cost is reported as latency and tokens, not dollars.** Local inference has no
+  per-call price. `config/pricing.yaml` exists for the hosted path and is otherwise
+  unused; when it holds no rate for a model, the cost column stays blank rather than
+  showing a number nobody can trust.
 
 ---
 

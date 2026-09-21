@@ -1,5 +1,11 @@
 # Rates are US dollars per million tokens.
 #
+# This file only matters for the hosted `--grader anthropic` path. The default grader
+# runs a local model through Ollama, which has no per-call price: there, cost is
+# reported as latency and tokens, and every dollar column stays blank. Local models
+# are deliberately absent below rather than listed at 0.00, because a zero would read
+# as a measured price rather than as "this question does not apply".
+#
 # Prices change. Re-check them against the published price list before publishing any
 # cost figure, and update `checked_on` when you do. A benchmark that quietly reports
 # stale pricing is worse than one that reports none - leave a model out and its cost

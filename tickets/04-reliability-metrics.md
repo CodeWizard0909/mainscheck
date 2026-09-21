@@ -13,6 +13,8 @@ Two gates live in this ticket, and they are the reason it is one ticket rather t
 **Status:** ready-for-agent
 
 - [ ] Self-consistency run: every answer graded five times at temperature 0 and at 0.7
+      (local models accept temperature, unlike the current hosted generation, so this
+      axis is real again — decide per the note below whether to report it separately)
 - [ ] Standard deviation reported per criterion, plus the largest spread seen on any single answer
 - [ ] Sensitivity reported as mean score change per perturbation, with effect sizes
 - [ ] `corrupt_fact` penalised at least as heavily as `delete_fact`, or the discrepancy is written up
@@ -30,3 +32,9 @@ reported spread blends sampling noise at one temperature with the difference bet
 temperature settings. Those are two different things and a headline number should not
 mix them. Worth deciding here whether to report per-temperature or keep the blend and
 label it.
+
+This got more pressing with the move to local grading. The current hosted models
+reject sampling parameters, so the two temperature groups would have been identical
+requests and the blend would have been harmless. Ollama accepts them, so the blend now
+mixes two genuinely different quantities, and collapsing them into one number would
+hide the more interesting of the two.

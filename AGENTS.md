@@ -24,10 +24,14 @@ See `docs/agents/domain.md`.
 
 ## Working on this repo
 
-- Run things through `uv`: `uv run mainscheck validate` needs no API key and checks the
-  corpus parses, has fact markers, and that all six perturbations apply.
-- `uv run mainscheck run` calls a live model and costs money. Cache to disk, and
-  extrapolate spend from a small `--limit` run before launching the full matrix.
+- Run things through `uv`: `uv run mainscheck validate` needs no model at all and
+  checks the corpus parses, has fact markers, and that all six perturbations apply.
+- **Grading runs on a local model through Ollama by default, and must stay free to
+  run.** Do not introduce a paid API on the default path. `--grader anthropic` exists
+  for anyone who wants it and is never the default.
+- Local inference is compute-bound: concurrency is capped at 2, and a full
+  configuration takes hours on CPU rather than minutes. Always try `--limit 3` first.
+  Responses cache by content hash, so an interrupted run resumes for free.
 - The control perturbation (`synonym_rewrite`) must leave scores flat. If it doesn't,
   report that rather than working around it — it means the harness is measuring
   sampling noise.
