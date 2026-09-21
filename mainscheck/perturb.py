@@ -68,6 +68,23 @@ class Perturbation:
     note: str = ""
 
 
+def _matching_case(replacement: str) -> Callable[[re.Match], str]:
+    """Substitute without changing capitalisation.
+
+    Matching is case-insensitive, so "However" at the start of a sentence would
+    otherwise become lowercase "nevertheless". That is a mechanical error a grader
+    could reasonably penalise, which would make the control register an effect that
+    is really a defect in the control itself.
+    """
+
+    def substitute(match: re.Match) -> str:
+        if match.group(0)[:1].isupper():
+            return replacement[:1].upper() + replacement[1:]
+        return replacement
+
+    return substitute
+
+
 def _rng(answer: Answer, salt: str) -> random.Random:
     """Deterministic per (answer, perturbation) so runs are reproducible."""
     return random.Random(f"{answer.answer_id}:{salt}")
@@ -151,7 +168,7 @@ def synonym_rewrite(answer: Answer) -> Perturbation | None:
     """
     body = answer.body
     for pattern, replacement in _SYNONYMS.items():
-        body = re.sub(pattern, replacement, body, flags=re.IGNORECASE)
+        body = re.sub(pattern, _matching_case(replacement), body, flags=re.IGNORECASE)
     if render(body) == answer.rendered():
         return None
     return Perturbation(
