@@ -24,6 +24,10 @@ _FILLER = [
 ]
 
 # Wording-only substitutions. Nothing here changes a claim, a fact, or an argument.
+#
+# Connectives and intensifiers only. Domain nouns are deliberately absent: "essential
+# features" and "basic structure" are terms of art in constitutional law, and swapping
+# them would change meaning, which is the one thing the control must never do.
 _SYNONYMS = {
     r"\bimportant\b": "significant",
     r"\bshows\b": "demonstrates",
@@ -33,6 +37,16 @@ _SYNONYMS = {
     r"\balso\b": "additionally",
     r"\bhelp\b": "assist",
     r"\bbig\b": "substantial",
+    r"\byet\b": "nevertheless",
+    r"\btherefore\b": "consequently",
+    r"\bthus\b": "hence",
+    r"\brather than\b": "instead of",
+    r"\bsuch as\b": "including",
+    r"\boften\b": "frequently",
+    r"\bseveral\b": "multiple",
+    r"\bfor example\b": "for instance",
+    r"\bin addition\b": "additionally",
+    r"\bvery\b": "highly",
 }
 
 
@@ -119,11 +133,18 @@ def remove_conclusion(answer: Answer) -> Perturbation | None:
     )
 
 
-def synonym_rewrite(answer: Answer) -> Perturbation:
-    """THE CONTROL. Wording changes only. Expected direction is zero."""
+def synonym_rewrite(answer: Answer) -> Perturbation | None:
+    """THE CONTROL. Wording changes only. Expected direction is zero.
+
+    Returns None when no substitution applies. Returning unchanged text instead would
+    be worse than useless: the grader would correctly report no change, and the
+    benchmark would record a passing control that tested nothing.
+    """
     body = answer.body
     for pattern, replacement in _SYNONYMS.items():
         body = re.sub(pattern, replacement, body, flags=re.IGNORECASE)
+    if render(body) == answer.rendered():
+        return None
     return Perturbation(
         "synonym_rewrite", "overall", 0, render(body), "control: wording only"
     )

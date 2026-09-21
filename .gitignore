@@ -5,7 +5,8 @@ research/
 .scratch/
 
 .cache/
-report/index.html
+report/
+results-stub/
 .venv/
 __pycache__/
 *.pyc

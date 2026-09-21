@@ -17,6 +17,7 @@ from .corpus import load_corpus, load_questions
 from .economics import load_pricing, summarise
 from .graders.anthropic_grader import AnthropicGrader
 from .graders.base import Cache
+from .graders.stub import StubGrader
 from .metrics import bias, consistency, monotonicity, sensitivity
 from .perturb import CONTROL, apply_all
 from .report import build_report
@@ -45,7 +46,14 @@ def cli() -> None:
 @click.option("--concurrency", default=8, show_default=True)
 @click.option("--no-perturbations", is_flag=True, help="Consistency only.")
 @click.option("--limit", default=0, help="Use only the first N answers (a smoke test).")
-def run_cmd(rubric, model, repeats, temperatures, concurrency, no_perturbations, limit):
+@click.option("--grader", type=click.Choice(["anthropic", "stub"]), default="anthropic",
+              show_default=True,
+              help="'stub' exercises the pipeline with no API calls and no cost.")
+@click.option("--results-dir", default=None,
+              help="Where to write results. Defaults to results/, or results-stub/ "
+                   "for the stub grader so the two never mix.")
+def run_cmd(rubric, model, repeats, temperatures, concurrency, no_perturbations, limit,
+            grader, results_dir):
     """Grade the corpus and save results."""
     rubric_path = RUBRICS / f"{rubric}.yaml"
     if not rubric_path.exists():
@@ -65,8 +73,16 @@ def run_cmd(rubric, model, repeats, temperatures, concurrency, no_perturbations,
         include_perturbations=not no_perturbations,
     )
 
-    cache = Cache(CACHE)
-    grader = AnthropicGrader(model, rubric_cfg, cache)
+    if grader == "stub":
+        cache = Cache(CACHE / "stub")
+        grader_impl = StubGrader(model, rubric_cfg, cache)
+        out_dir = ROOT / (results_dir or "results-stub")
+        click.secho("stub grader: no API calls, and these results are not real",
+                    fg="yellow", err=True)
+    else:
+        cache = Cache(CACHE)
+        grader_impl = AnthropicGrader(model, rubric_cfg, cache)
+        out_dir = ROOT / (results_dir or "results")
 
     click.echo(f"{len(answers)} answers -> {len(tasks)} gradings "
                f"({model}, rubric={rubric})")
@@ -78,14 +94,14 @@ def run_cmd(rubric, model, repeats, temperatures, concurrency, no_perturbations,
         if done % 25 == 0 or done == len(tasks):
             click.echo(f"  {done}/{len(tasks)}  cache hits={cache.hits}", err=True)
 
-    gradings = asyncio.run(run(grader, tasks, concurrency=concurrency, progress=tick))
+    gradings = asyncio.run(run(grader_impl, tasks, concurrency=concurrency, progress=tick))
 
     failed = [g for g in gradings if g.error]
     if failed:
         click.secho(f"{len(failed)} gradings failed; first: {failed[0].error}",
                     fg="yellow", err=True)
 
-    out = RESULTS / f"{model}__{rubric}.json"
+    out = out_dir / f"{model}__{rubric}.json"
     save(gradings, out)
     click.secho(f"wrote {out.relative_to(ROOT)}", fg="green")
     click.echo(f"cache: {cache.hits} hits, {cache.misses} misses")
@@ -93,12 +109,15 @@ def run_cmd(rubric, model, repeats, temperatures, concurrency, no_perturbations,
 
 @cli.command("report")
 @click.option("--open", "open_", is_flag=True, help="Open the report when built.")
-def report_cmd(open_):
+@click.option("--results-dir", default="results", show_default=True,
+              help="Pass results-stub to inspect a stub run.")
+def report_cmd(open_, results_dir):
     """Compute metrics across every saved run and build the HTML report."""
-    if not RESULTS.exists() or not any(RESULTS.glob("*.json")):
-        raise click.ClickException("no results yet - run `mainscheck run` first")
+    source = ROOT / results_dir
+    if not source.exists() or not any(source.glob("*.json")):
+        raise click.ClickException(f"no results in {results_dir}/ - run `mainscheck run` first")
 
-    gradings = load_all(RESULTS)
+    gradings = load_all(source)
     answers = {a.answer_id: a for a in load_corpus(CORPUS)}
     quality = {aid: a.quality for aid, a in answers.items()}
 
@@ -124,7 +143,8 @@ def report_cmd(open_):
         })
 
     economics = summarise(gradings, load_pricing(PRICING))
-    path = build_report(blocks, economics, ROOT / "report" / "index.html")
+    name = "index.html" if results_dir == "results" else f"{results_dir}.html"
+    path = build_report(blocks, economics, ROOT / "report" / name)
     click.secho(f"wrote {path.relative_to(ROOT)}", fg="green")
 
     for block in blocks:
@@ -161,9 +181,21 @@ def validate_cmd():
             problems.append(f"{answer.answer_id}: no {{{{f:...}}}} fact markers")
         if len(answer.paragraphs) < 3:
             problems.append(f"{answer.answer_id}: fewer than 3 paragraphs")
-        names = {p.name for p in apply_all(answer)}
+        perturbations = apply_all(answer)
+        names = {p.name for p in perturbations}
         if CONTROL not in names:
             problems.append(f"{answer.answer_id}: control perturbation did not apply")
+
+        # A perturbation that leaves the text untouched is a silent no-op: the grader
+        # correctly reports no change, and the benchmark records a clean result for
+        # entirely the wrong reason.
+        original = answer.rendered()
+        for perturbation in perturbations:
+            if perturbation.text == original:
+                problems.append(
+                    f"{answer.answer_id}: {perturbation.name} produced no change "
+                    f"(no-op - the answer lacks anything for it to act on)"
+                )
 
     by_quality = {}
     for answer in answers:

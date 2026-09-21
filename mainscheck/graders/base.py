@@ -118,6 +118,11 @@ class Grader(ABC):
             answer=answer_text,
             temperature=temperature,
             run_index=run_index,
+            # Variant belongs in the key even though it does not change the prompt.
+            # A perturbation that happens to produce text identical to the original
+            # would otherwise collide with it and be served a Grading labelled
+            # "original", silently corrupting the sensitivity measurement.
+            variant=variant,
         )
         cached = self.cache.get(key)
         if cached is not None:
