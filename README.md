@@ -6,8 +6,35 @@ the things that should change a mark.
 Several Indian exam-prep products now advertise AI evaluation of UPSC Mains answers.
 None of them publishes evidence that the scores are stable. This measures that.
 
-> **Status: scaffold.** The harness runs; the corpus is one example answer. Headline
-> numbers appear here once the corpus is written and the first full run completes.
+## What it found
+
+**No configuration detected a corrupted fact.** Swapping a real date or Act for a
+plausible wrong one moved the overall score by at most **0.02 points**, and by nothing
+at all on 26 to 29 of 30 answers — in every cell of the matrix below.
+
+| | 3B naive | 3B structured | 7B naive | 7B structured |
+| --- | --- | --- | --- | --- |
+| Control drift, weak answers | **+0.30** | **+0.54** | flat | flat |
+| Mean spread, t=0 | 0.03 | 0.09 | 0.03 | 0.02 |
+| Deterministic at t=0.7 | 10/30 | 1/30 | **22/30** | 6/30 |
+| `corrupt_fact` unchanged on | 29/30 | 26/30 | 28/30 | 26/30 |
+| Mean latency | 12.9 s | 26.5 s | 26.6 s | 47.9 s |
+
+1,920 gradings. `llama3.2:3b` and `qwen2.5:7b`, run locally.
+
+**Stylistic judgement scales; factual verification does not.** Going from 3B to 7B
+buys a grader that stops rewarding rewording — the control fails on both 3B
+configurations and is flat on both 7B ones — and starts noticing scrambled structure.
+It does not buy one that checks whether a claim is true.
+
+**The structured rubric lost to the naive baseline** on consistency, on control drift,
+and on latency. That comparison was supposed to be the argument *for* structured
+grading. One confound: naive scores one criterion where structured averages four.
+
+**At equal compute, spend it on capacity rather than on rubric elaboration.** 3B
+structured costs 26.5 s; 7B naive costs 26.6 s. The larger model with the simpler
+prompt is flat where the other drifts +0.54, and deterministic on 22 of 30 answers at
+temperature 0.7 where the other manages 1.
 
 ---
 
@@ -144,4 +171,7 @@ Written here first, deliberately.
 
 ## Licence
 
-Code: MIT. Corpus and results: CC BY 4.0. Questions are public UPSC material.
+Code is MIT ([LICENSE](LICENSE)). The corpus, results and rubrics are CC BY 4.0
+([LICENSE-CORPUS](LICENSE-CORPUS)). Nine of the ten questions are reproduced from the
+UPSC Mains 2023 papers and remain their author's property; they are included as short
+factual quotations. The tenth is original to this repository.

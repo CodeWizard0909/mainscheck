@@ -112,11 +112,17 @@ class SensitivityResult:
 def sensitivity(
     gradings: list[Grading], directions: dict[str, int]
 ) -> SensitivityResult:
-    """Mean change in overall score, per perturbation, against the original."""
-    baseline: dict[str, float] = {}
+    """Mean change in overall score, per perturbation, against the original.
+
+    The baseline is the mean of every original run for an answer. Taking the first
+    one instead would make the result depend on the order rows happen to sit in,
+    which is not a property of the grader.
+    """
+    originals: dict[str, list[float]] = defaultdict(list)
     for g in gradings:
         if g.variant == "original" and not g.error and g.overall is not None:
-            baseline.setdefault(g.answer_id, g.overall)
+            originals[g.answer_id].append(g.overall)
+    baseline = {aid: mean(vals) for aid, vals in originals.items()}
 
     deltas: dict[str, list[float]] = defaultdict(list)
     for g in gradings:

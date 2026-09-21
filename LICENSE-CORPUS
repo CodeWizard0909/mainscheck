@@ -1,0 +1,33 @@
+Creative Commons Attribution 4.0 International (CC BY 4.0)
+
+Copyright (c) 2026 CodeWizard0909
+
+This licence covers the data in this repository, not the code. The code is MIT
+licensed; see LICENSE.
+
+Covered by this licence:
+
+  corpus/answers/      the 30 answers, written for this benchmark
+  results/             the grading results produced from them
+  rubrics/             the rubric definitions
+
+Not covered, because they are not ours to license:
+
+  corpus/questions.yaml  Nine of the ten questions are reproduced from the UPSC
+                         Civil Services Mains 2023 papers and remain the
+                         property of their author. They are included as short
+                         factual quotations for research use. The tenth,
+                         `gs2-authored-q1`, is original to this repository and
+                         is covered by this licence.
+
+You are free to share and adapt the covered material for any purpose, including
+commercially, provided you give appropriate credit, link to the licence, and
+indicate if changes were made.
+
+Full licence text: https://creativecommons.org/licenses/by/4.0/legalcode
+Human-readable summary: https://creativecommons.org/licenses/by/4.0/
+
+Attribution: please cite this repository and note that the answers are
+LLM-drafted and author-reviewed rather than written by examination candidates.
+See corpus/PROVENANCE.md, which states this and what it does and does not
+undermine.
