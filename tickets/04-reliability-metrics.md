@@ -8,12 +8,6 @@ Two gates live in this ticket, and they are the reason it is one ticket rather t
 
 **The day-9 decision.** Once self-consistency is measured, inspect the spread before going further. If the grader is already highly stable, there is no reliability story, and the headline pivots to the cost-and-latency frontier instead. Making this call here is the whole point; discovering it in the final week is the failure mode this ticket exists to prevent.
 
-**Known issue, found during ticket 01.** `consistency` currently groups every original
-grading for an answer together regardless of temperature, so the reported spread blends
-sampling noise at a given temperature with the difference between temperature settings.
-Those are two different things and the headline number should not mix them. Decide here
-whether to report per-temperature or to keep the blend and say so explicitly.
-
 **Blocked by:** 02, 03
 
 **Status:** ready-for-agent
@@ -27,3 +21,12 @@ whether to report per-temperature or to keep the blend and say so explicitly.
 - [ ] Length bias reported from the padding perturbation; position bias from batch order
 - [ ] Control gate evaluated and its verdict stated explicitly in the report
 - [ ] Day-9 decision recorded in writing: reliability headline, or pivot to economics
+
+## Comments
+
+**Observation from ticket 01, not a change to the ask above.** `consistency` currently
+groups every original grading for an answer together regardless of temperature, so the
+reported spread blends sampling noise at one temperature with the difference between
+temperature settings. Those are two different things and a headline number should not
+mix them. Worth deciding here whether to report per-temperature or keep the blend and
+label it.

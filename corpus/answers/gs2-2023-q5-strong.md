@@ -33,7 +33,7 @@ review, federalism, secularism and the rule of law were not enumerated in 1973; 
 were recognised over five decades of adjudication. This is the mechanism by which a
 document drafted for one India continues to govern another.
 
-Yet describing the Constitution as living should not obscure the cost. The doctrine
+However, describing the Constitution as living should not obscure the cost. The doctrine
 has no textual basis, and its content is determined by an unelected court. Its
 legitimacy rests less on constitutional text than on a settled understanding that some
 questions should be placed beyond majoritarian revision. That understanding has held

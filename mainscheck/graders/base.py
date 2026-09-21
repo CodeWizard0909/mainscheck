@@ -86,8 +86,14 @@ class Grader(ABC):
         self.cache = cache
 
     @abstractmethod
-    async def _call(self, prompt: str, temperature: float) -> tuple[dict, str, int, int]:
-        """Return (scores, rationale, input_tokens, output_tokens)."""
+    async def _call(
+        self, prompt: str, temperature: float, answer_text: str
+    ) -> tuple[dict, str, int, int]:
+        """Return (scores, rationale, input_tokens, output_tokens).
+
+        ``answer_text`` is the raw answer, passed through so an implementation never
+        has to parse it back out of the rendered prompt.
+        """
 
     def build_prompt(self, question: str, answer_text: str) -> str:
         criteria_block = "\n".join(
@@ -131,7 +137,9 @@ class Grader(ABC):
         prompt = self.build_prompt(question, answer_text)
         started = time.perf_counter()
         try:
-            scores, rationale, tin, tout = await self._call(prompt, temperature)
+            scores, rationale, tin, tout = await self._call(
+                prompt, temperature, answer_text
+            )
             error = None
         except Exception as exc:  # noqa: BLE001 - recorded, not swallowed
             scores, rationale, tin, tout = {}, "", 0, 0

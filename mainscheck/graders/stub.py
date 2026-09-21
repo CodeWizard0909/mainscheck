@@ -2,11 +2,18 @@
 
 **This is not a grader.** It scores text by counting surface features, which is
 precisely the kind of evaluation this project exists to discredit. It exists so the
-runner, the metrics and the report can be verified end to end without spending money,
-and so tests have something to run against.
+runner, the metrics and the report can be verified end to end without spending money.
+Tests do not depend on it; they build their own fixtures.
 
 Results produced by it are written to a separate directory and never mix with real
 ones. Nothing it produces belongs in a published report.
+
+Known blind spots, left in place rather than tuned away: it counts date-like and
+Article-like tokens, so ``corrupt_fact`` (1980 -> 1985) leaves its factual score
+unchanged, and it counts paragraphs, so ``scramble_structure`` leaves its structure
+score unchanged. Both register near zero. A real grader would react to either. Tuning
+the stub until those moved would be fitting a fake evaluator to a desired result, which
+is the practice this whole project exists to expose.
 """
 
 from __future__ import annotations
@@ -14,18 +21,30 @@ from __future__ import annotations
 import hashlib
 import re
 
+from ..perturb import FILLER_SENTENCES, SYNONYM_TARGETS
 from .base import Cache, Grader
 
 # Words that signal an argument is being weighed rather than listed.
+#
+# Anything the control perturbation rewrites is excluded. If the stub rewarded a word
+# that synonym_rewrite substitutes, the stub would report the control as having an
+# effect - it would be marking its own homework, and the pipeline check would pass
+# while demonstrating the exact bug the control exists to catch.
 _ANALYTICAL = re.compile(
-    r"\b(however|whereas|although|critics|conversely|yet|nevertheless|"
-    r"defended|criticised|tension|trade-?off)\b",
+    r"\b("
+    + "|".join(
+        w for w in
+        ["whereas", "although", "critics", "conversely", "defended", "criticised",
+         "tension", "trade-?off"]
+        if w not in SYNONYM_TARGETS
+    )
+    + r")\b",
     re.IGNORECASE,
 )
-# Filler that adds length without content. The padding perturbation inserts these.
+# Filler the padding perturbation inserts, taken from its own list so the two
+# cannot drift apart.
 _FILLER = re.compile(
-    r"\b(widely discussed|important to note|various stakeholders|broader context)\b",
-    re.IGNORECASE,
+    "|".join(re.escape(s.rstrip(".")) for s in FILLER_SENTENCES), re.IGNORECASE
 )
 # Dates, Article numbers and case years - a crude proxy for factual density.
 _FACTUAL = re.compile(r"\b(Article\s+\d+|\d{4})\b")
@@ -41,14 +60,10 @@ class StubGrader(Grader):
     against hand-built fixtures.
     """
 
-    def __init__(
-        self, model: str, rubric: dict, cache: Cache, *, jitter: float = 0.3
-    ) -> None:
-        super().__init__(model, rubric, cache)
-        self.jitter = jitter
+    JITTER = 0.3
 
-    async def _call(self, prompt: str, temperature: float):
-        answer = self._answer_from(prompt)
+    async def _call(self, prompt: str, temperature: float, answer_text: str):
+        answer = answer_text
         words = max(1, len(answer.split()))
 
         paragraphs = len([p for p in answer.split("\n\n") if p.strip()])
@@ -66,7 +81,9 @@ class StubGrader(Grader):
 
         scores = {}
         for criterion in self.criteria:
-            value = base.get(criterion, 5.0) + self._jitter_for(answer, criterion, temperature)
+            value = base.get(criterion, 5.0) + self._jitter_for(
+                answer, criterion, temperature
+            )
             scores[criterion] = round(max(0.0, min(10.0, value)), 2)
 
         rationale = (
@@ -77,21 +94,8 @@ class StubGrader(Grader):
 
     def _jitter_for(self, answer: str, criterion: str, temperature: float) -> float:
         """Deterministic pseudo-noise. Same inputs give the same value, always."""
-        if self.jitter <= 0:
-            return 0.0
         seed = f"{answer}:{criterion}:{temperature}:{self.model}"
         digest = hashlib.sha256(seed.encode("utf-8")).digest()
         unit = int.from_bytes(digest[:4], "big") / 0xFFFFFFFF  # 0.0 to 1.0
-        spread = self.jitter * (1.0 + temperature)
+        spread = self.JITTER * (1.0 + temperature)
         return (unit - 0.5) * 2 * spread
-
-    @staticmethod
-    def _answer_from(prompt: str) -> str:
-        """Pull the answer back out of the rendered prompt."""
-        for marker in ("CANDIDATE ANSWER:", "ANSWER:"):
-            if marker in prompt:
-                tail = prompt.split(marker, 1)[1]
-                # Stop at the next all-caps section header, if any.
-                stop = re.search(r"\n[A-Z][A-Z ]{3,}:", tail)
-                return (tail[: stop.start()] if stop else tail).strip()
-        return prompt

@@ -39,7 +39,8 @@ class AnthropicGrader(Grader):
                 )
             self.client = AsyncAnthropic()
 
-    async def _call(self, prompt: str, temperature: float):
+    async def _call(self, prompt: str, temperature: float, answer_text: str):
+        # answer_text is unused here: the prompt already carries it.
         response = await self.client.messages.create(
             model=self.model,
             max_tokens=self.max_tokens,

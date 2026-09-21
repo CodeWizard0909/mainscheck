@@ -16,7 +16,7 @@ from typing import Callable
 from .corpus import Answer, render
 
 # Deliberately bland filler. It adds length and zero substance, which is the point.
-_FILLER = [
+FILLER_SENTENCES = [
     "This dimension of the issue has been widely discussed in policy circles.",
     "It is important to note that the matter has several aspects worth considering.",
     "Various stakeholders have expressed differing views on this question over time.",
@@ -37,7 +37,10 @@ _SYNONYMS = {
     r"\balso\b": "additionally",
     r"\bhelp\b": "assist",
     r"\bbig\b": "substantial",
-    r"\byet\b": "nevertheless",
+    # "yet" is deliberately absent: adverbial "yet" ("not yet settled") becomes
+    # "not nevertheless settled", which is ungrammatical. A grader would rightly
+    # mark that down, and the control would register sensitivity that is really a
+    # defect in the control itself.
     r"\btherefore\b": "consequently",
     r"\bthus\b": "hence",
     r"\brather than\b": "instead of",
@@ -48,6 +51,12 @@ _SYNONYMS = {
     r"\bin addition\b": "additionally",
     r"\bvery\b": "highly",
 }
+
+# The bare words the control rewrites. Anything measuring answer quality must avoid
+# these, or it will register an effect from the control and mark its own homework.
+SYNONYM_TARGETS = frozenset(
+    p.replace(r"\b", "").replace("\\", "") for p in _SYNONYMS
+) | frozenset(_SYNONYMS.values())
 
 
 @dataclass(frozen=True)
@@ -117,7 +126,7 @@ def pad_verbosity(answer: Answer) -> Perturbation:
     """More words, no more content. No criterion should reward this."""
     rng = _rng(answer, "pad")
     paras = answer.paragraphs
-    padded = [f"{p} {rng.choice(_FILLER)}" for p in paras]
+    padded = [f"{p} {rng.choice(FILLER_SENTENCES)}" for p in paras]
     return Perturbation(
         "pad_verbosity", "structure", 0, render("\n\n".join(padded)),
         "length inflated without new content",
@@ -163,10 +172,32 @@ CONTROL = "synonym_rewrite"
 
 
 def apply_all(answer: Answer) -> list[Perturbation]:
-    """Every perturbation that applies to this answer. Some need facts or paragraphs."""
+    """Every perturbation that genuinely changes this answer.
+
+    No-ops are filtered here rather than at the call sites, so there is one
+    definition of "this perturbation did nothing". Grading a no-op would cost money
+    to learn that unchanged text scores the same.
+    """
+    original = answer.rendered()
     out = []
     for fn in ALL:
         result = fn(answer)
-        if result is not None:
+        if result is not None and result.text != original:
             out.append(result)
     return out
+
+
+def find_no_ops(answer: Answer) -> list[str]:
+    """Names of perturbations that produced no change, for `validate` to report.
+
+    A perturbation that leaves the text untouched is a silent no-op: the grader
+    correctly reports no change, and the benchmark records a clean result for
+    entirely the wrong reason. The author needs to know, so the answer can be fixed.
+    """
+    original = answer.rendered()
+    names = []
+    for fn in ALL:
+        result = fn(answer)
+        if result is None or result.text == original:
+            names.append(fn.__name__)
+    return names

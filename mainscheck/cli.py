@@ -19,7 +19,7 @@ from .graders.anthropic_grader import AnthropicGrader
 from .graders.base import Cache
 from .graders.stub import StubGrader
 from .metrics import bias, consistency, monotonicity, sensitivity
-from .perturb import CONTROL, apply_all
+from .perturb import CONTROL, apply_all, find_no_ops
 from .report import build_report
 from .runner import build_tasks, load_all, run, save
 
@@ -27,9 +27,18 @@ ROOT = Path(__file__).resolve().parent.parent
 CORPUS = ROOT / "corpus" / "answers"
 QUESTIONS = ROOT / "corpus" / "questions.yaml"
 RUBRICS = ROOT / "rubrics"
-RESULTS = ROOT / "results"
 CACHE = ROOT / ".cache"
 PRICING = ROOT / "config" / "pricing.yaml"
+
+# Real runs and stub runs are kept apart so stub output can never reach a published
+# report. Each results directory gets its own report file.
+REAL_RESULTS = "results"
+STUB_RESULTS = "results-stub"
+
+
+def report_path_for(results_dir: str) -> Path:
+    name = "index.html" if results_dir == REAL_RESULTS else f"{results_dir}.html"
+    return ROOT / "report" / name
 
 
 @click.group()
@@ -76,13 +85,13 @@ def run_cmd(rubric, model, repeats, temperatures, concurrency, no_perturbations,
     if grader == "stub":
         cache = Cache(CACHE / "stub")
         grader_impl = StubGrader(model, rubric_cfg, cache)
-        out_dir = ROOT / (results_dir or "results-stub")
+        out_dir = ROOT / (results_dir or STUB_RESULTS)
         click.secho("stub grader: no API calls, and these results are not real",
                     fg="yellow", err=True)
     else:
         cache = Cache(CACHE)
         grader_impl = AnthropicGrader(model, rubric_cfg, cache)
-        out_dir = ROOT / (results_dir or "results")
+        out_dir = ROOT / (results_dir or REAL_RESULTS)
 
     click.echo(f"{len(answers)} answers -> {len(tasks)} gradings "
                f"({model}, rubric={rubric})")
@@ -109,7 +118,7 @@ def run_cmd(rubric, model, repeats, temperatures, concurrency, no_perturbations,
 
 @cli.command("report")
 @click.option("--open", "open_", is_flag=True, help="Open the report when built.")
-@click.option("--results-dir", default="results", show_default=True,
+@click.option("--results-dir", default=REAL_RESULTS, show_default=True,
               help="Pass results-stub to inspect a stub run.")
 def report_cmd(open_, results_dir):
     """Compute metrics across every saved run and build the HTML report."""
@@ -143,8 +152,7 @@ def report_cmd(open_, results_dir):
         })
 
     economics = summarise(gradings, load_pricing(PRICING))
-    name = "index.html" if results_dir == "results" else f"{results_dir}.html"
-    path = build_report(blocks, economics, ROOT / "report" / name)
+    path = build_report(blocks, economics, report_path_for(results_dir))
     click.secho(f"wrote {path.relative_to(ROOT)}", fg="green")
 
     for block in blocks:
@@ -181,21 +189,14 @@ def validate_cmd():
             problems.append(f"{answer.answer_id}: no {{{{f:...}}}} fact markers")
         if len(answer.paragraphs) < 3:
             problems.append(f"{answer.answer_id}: fewer than 3 paragraphs")
-        perturbations = apply_all(answer)
-        names = {p.name for p in perturbations}
+        names = {p.name for p in apply_all(answer)}
         if CONTROL not in names:
             problems.append(f"{answer.answer_id}: control perturbation did not apply")
-
-        # A perturbation that leaves the text untouched is a silent no-op: the grader
-        # correctly reports no change, and the benchmark records a clean result for
-        # entirely the wrong reason.
-        original = answer.rendered()
-        for perturbation in perturbations:
-            if perturbation.text == original:
-                problems.append(
-                    f"{answer.answer_id}: {perturbation.name} produced no change "
-                    f"(no-op - the answer lacks anything for it to act on)"
-                )
+        for name in find_no_ops(answer):
+            problems.append(
+                f"{answer.answer_id}: {name} produced no change "
+                f"(the answer lacks anything for it to act on)"
+            )
 
     by_quality = {}
     for answer in answers:

@@ -6,18 +6,29 @@ Deliberately tiny. Three answers at most, few repeats, one configuration. The po
 
 **Blocked by:** None (can start immediately)
 
-**Status:** blocked — needs `ANTHROPIC_API_KEY`
+**Status:** needs-info
 
 - [ ] `ANTHROPIC_API_KEY` set and a live grading call succeeds against the structured rubric
 - [x] Two more answers exist for the same question, one `middling` and one `weak`, so a spread is visible
-- [x] A run with `--limit 3 --repeats 3` completes and writes a results JSON *(via the stub grader)*
-- [x] The report builds and opens, showing consistency columns with real values *(cost columns blank until `config/pricing.yaml` is filled)*
-- [x] Re-running the same command is near-instant and shows cache hits, confirming the cache works *(36/36 hits)*
-- [x] Token counts and latency are non-zero on every stored grading
+- [x] A run with `--limit 3 --repeats 3` completes and writes a results JSON
+- [ ] The report builds and opens, showing consistency and cost columns with real values
+- [x] Re-running the same command is near-instant and shows cache hits, confirming the cache works
+- [ ] Token counts and latency are non-zero on every stored grading
 
 ## Comments
 
-Everything except the live API call is done and verified through a stub grader
+**Status is `needs-info`:** waiting on an `ANTHROPIC_API_KEY`. Three criteria stay
+unticked until one is available, and none of them should be reworded to match what the
+stub can reach — the earlier revision of this ticket did exactly that and it was wrong.
+
+- The **live grading call** cannot happen at all.
+- The **report criterion** asks for consistency *and cost* with real values. Cost is
+  blank until `config/pricing.yaml` is filled, and the consistency the stub produces is
+  0.0 by construction, which is not a real value.
+- **Tokens and latency** are non-zero in stub output, but the token counts are
+  fabricated rather than reported by a model, so the criterion is not met.
+
+Everything else is done and verified through a stub grader
 (`--grader stub`), which exercises the runner, cache, metrics and report with no
 network and no cost. Stub output goes to `results-stub/` and never mixes with real
 results.
