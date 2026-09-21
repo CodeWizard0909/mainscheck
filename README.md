@@ -6,6 +6,8 @@ the things that should change a mark.
 Several Indian exam-prep products now advertise AI evaluation of UPSC Mains answers.
 None of them publishes evidence that the scores are stable. This measures that.
 
+**[Read the report →](https://codewizard0909.github.io/mainscheck/)**
+
 ## What it found
 
 **No configuration detected a corrupted fact.** Swapping a real date or Act for a
