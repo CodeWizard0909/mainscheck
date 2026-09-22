@@ -310,7 +310,10 @@ def build_report(blocks: list[dict], economics: list[Economics], out: Path) -> P
         banded = b.get("control_by_band")
         if not banded or not banded.per_band:
             continue
-        html.append(f"<h2>Control by answer quality &mdash; {b['model']}</h2>")
+        html.append(
+            f"<h2>Control by answer quality &mdash; {b['model']} / "
+            f"{b['rubric']}</h2>"
+        )
         html.append(
             "<table><tr><th>Quality band</th><th class='num'>Mean change</th>"
             "<th class='num'>Largest</th><th class='num'>Answers</th></tr>"
